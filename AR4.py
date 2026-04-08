@@ -148,6 +148,8 @@ from tkinter import *
 import ttkbootstrap as ttk_bootstrap
 from ttkbootstrap import Style as BootstrapStyle
 from ttkbootstrap import *  # This makes ttkbootstrap widgets available globally
+# Force LabelFrame to use ttk version
+from tkinter.ttk import LabelFrame
 from tkinter import simpledialog, messagebox
 import tkinter as tk
 from tkinter import ttk, Misc
@@ -2143,7 +2145,9 @@ def startup_with_spinner(root, timeout=10.0):
 
     res = q.get()
     if isinstance(res, Exception):
-        logger.exception("Startup failed while initializing Teensy 4.1 controller")
+        # We are outside an except block here, so logger.exception would print
+        # a misleading "NoneType: None" traceback. Log the actual exception instead.
+        logger.error("Startup failed while initializing Teensy 4.1 controller: %s", repr(res))
         raise res
     return res
 
@@ -2188,13 +2192,15 @@ def setCom(misc=None):  # Requires an input parameter for element use / it's unu
     # Add small timeouts so reads/writes can’t hang forever
     RUN['ser'] = serial.Serial(
       port=CAL['comPort'],
-      baudrate=baud
+      baudrate=baud,
+      timeout=1,
+      write_timeout=1
     )
-    logger.info("COMMUNICATIONS STARTED WITH TEENSY 4.1 CONTROLLER on Port %s", CAL['comPort'])
+    logger.info("COMMUNICATIONS STARTED WITH TEENSY 4.1 BOARD on Port %s", CAL['comPort'])
 
     almStatusLab.config(text="SYSTEM READY", style="OK.TLabel")
     almStatusLab2.config(text="SYSTEM READY", style="OK.TLabel")
-    logger.info("COMMUNICATIONS STARTED WITH TEENSY 4.1 CONTROLLER")
+    logger.info("COMMUNICATIONS STARTED WITH TEENSY 4.1 BOARD")
 
     time.sleep(.1)
     # Prefer reset_input_buffer over deprecated flushInput
@@ -2244,7 +2250,7 @@ def setCom2(misc=None): # Requires and input parameter for element use / its unu
     if CAL['com2Port'] in (None, "", "None"):
       raise ValueError("No COM port selected")
     
-    RUN['ser2'] = serial.Serial(CAL['com2Port'],baud)
+    RUN['ser2'] = serial.Serial(CAL['com2Port'], baud, timeout=1, write_timeout=1)
     #almStatusLab.config(text="SYSTEM READY", style="OK.TLabel")
     #almStatusLab2.config(text="SYSTEM READY", style="OK.TLabel")
     logger.info(f"COMMUNICATIONS STARTED WITH ARDUINO IO BOARD on port: {CAL['com2Port']}")
@@ -8426,7 +8432,10 @@ def calRobotJ2():
     ErrorHandler(response)
   #Curtime = datetime.now().strftime("%B %d %Y - %I:%M%p")
   #tab8.ElogView.insert(END, Curtime+" - "+message)
-  logger.error(message)
+  if "success" in message.strip().lower():
+    logger.info(message)
+  else:
+    logger.error(message)
   value=tab8.ElogView.get(0,END)
   pickle.dump(value,open("ErrorLog","wb"))     
 
@@ -8458,7 +8467,10 @@ def calRobotJ3():
     ErrorHandler(response)
   #Curtime = datetime.now().strftime("%B %d %Y - %I:%M%p")
   #tab8.ElogView.insert(END, Curtime+" - "+message)
-  logger.error(message)
+  if "success" in message.strip().lower():
+    logger.info(message)
+  else:
+    logger.error(message)
   value=tab8.ElogView.get(0,END)
   pickle.dump(value,open("ErrorLog","wb"))     
 
@@ -8490,7 +8502,10 @@ def calRobotJ4():
     ErrorHandler(response)
   #Curtime = datetime.now().strftime("%B %d %Y - %I:%M%p")
   #tab8.ElogView.insert(END, Curtime+" - "+message)
-  logger.error(message)
+  if "success" in message.strip().lower():
+    logger.info(message)
+  else:
+    logger.error(message)
   value=tab8.ElogView.get(0,END)
   pickle.dump(value,open("ErrorLog","wb"))     
 
@@ -8522,7 +8537,10 @@ def calRobotJ5():
     ErrorHandler(response)
   #Curtime = datetime.now().strftime("%B %d %Y - %I:%M%p")
   #tab8.ElogView.insert(END, Curtime+" - "+message)
-  logger.error(message)
+  if "success" in message.strip().lower():
+    logger.info(message)
+  else:
+    logger.error(message)
   value=tab8.ElogView.get(0,END)
   pickle.dump(value,open("ErrorLog","wb"))     
 
@@ -8554,7 +8572,10 @@ def calRobotJ6():
     ErrorHandler(response)
   #Curtime = datetime.now().strftime("%B %d %Y - %I:%M%p")
   #tab8.ElogView.insert(END, Curtime+" - "+message)
-  logger.error(message)
+  if "success" in message.strip().lower():
+    logger.info(message)
+  else:
+    logger.error(message)
   value=tab8.ElogView.get(0,END)
   pickle.dump(value,open("ErrorLog","wb"))   
 
@@ -8583,7 +8604,10 @@ def calRobotJ7():
     ErrorHandler(response)
   #Curtime = datetime.now().strftime("%B %d %Y - %I:%M%p")
   #tab8.ElogView.insert(END, Curtime+" - "+message)
-  logger.error(message)
+  if "success" in message.strip().lower():
+    logger.info(message)
+  else:
+    logger.error(message)
   value=tab8.ElogView.get(0,END)
   pickle.dump(value,open("ErrorLog","wb")) 
 
@@ -8611,7 +8635,10 @@ def calRobotJ8():
     ErrorHandler(response)
   #Curtime = datetime.now().strftime("%B %d %Y - %I:%M%p")
   #tab8.ElogView.insert(END, Curtime+" - "+message)
-  logger.error(message)
+  if "success" in message.strip().lower():
+    logger.info(message)
+  else:
+    logger.error(message)
   value=tab8.ElogView.get(0,END)
   pickle.dump(value,open("ErrorLog","wb"))    
 
@@ -8639,7 +8666,10 @@ def calRobotJ9():
     ErrorHandler(response)
   #Curtime = datetime.now().strftime("%B %d %Y - %I:%M%p")
   #tab8.ElogView.insert(END, Curtime+" - "+message)
-  logger.error(message)
+  if "success" in message.strip().lower():
+    logger.info(message)
+  else:
+    logger.error(message)
   value=tab8.ElogView.get(0,END)
   pickle.dump(value,open("ErrorLog","wb"))             
 	
@@ -8656,11 +8686,26 @@ def correctPos():
 
 def requestPos():
   command = "RP\n"
-  RUN['ser'].write(command.encode())    
-  RUN['ser'].flushInput()
-  time.sleep(.1)
-  response = str(RUN['ser'].readline().strip(),'utf-8')
-  displayPosition(response) 
+
+  # Teensy can be slow to answer right after serial open; retry a few times.
+  for _ in range(5):
+    # Clear stale bytes before requesting a fresh position packet.
+    try:
+      RUN['ser'].reset_input_buffer()
+    except Exception:
+      pass
+
+    RUN['ser'].write(command.encode())
+    time.sleep(.1)
+    response = str(RUN['ser'].readline().strip(), 'utf-8')
+
+    # Expected position string contains all markers A..R.
+    markers = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R"]
+    if response and all(m in response for m in markers):
+      displayPosition(response)
+      return
+
+  raise TimeoutError("No valid RP position response from Teensy")
 
 def updateParams():
   CAL['TFx']  = TFxEntryField.get()
@@ -11202,7 +11247,7 @@ curRowEntryField = Entry(leftPanel, width=6, justify="center")
 curRowEntryField.grid(row=4, column=1, sticky="ew", padx=5, pady=2)
 
 # Row 5: Motion controls frame (with Xbox button at bottom)
-speedFrame = LabelFrame(leftPanel, text="Motion", padding=5)
+speedFrame = ttk.LabelFrame(leftPanel, text="Motion", padding=5)
 speedFrame.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
 
 speedFrame.grid_columnconfigure(1, weight=1)
@@ -14896,6 +14941,24 @@ match CE['Platform']['OS']:
 
     try:
       vismenu = OptionMenu(tab6, visoptions, selected_label.get(), *camList, command=on_camera_select)
+      vismenu.config(width=20)
+      vismenu.place(x=10, y=10)
+    except Exception:
+      logger.error("no camera")
+
+  case "Darwin":
+    # MacOS Support
+    import cv2
+    camList = ["Camera 0", "Camera 1", "Camera 2"]
+    visoptions = StringVar(tab6)
+    visoptions.set("Select a Camera")
+
+    def on_camera_select(chosen_label):
+      CAL['curCam'] = chosen_label
+      logger.debug(f"Debug - User picked: {chosen_label}")
+
+    try:
+      vismenu = OptionMenu(tab6, visoptions, "Select a Camera", *camList, command=on_camera_select)
       vismenu.config(width=20)
       vismenu.place(x=10, y=10)
     except Exception:

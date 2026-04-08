@@ -6,6 +6,8 @@ opencv-python
 opencv-contrib-python
 inputs
 ttkbootstrap
+numpy
+serial
 
 # Only install on Windows
 pywin32; sys_platform == "win32"
