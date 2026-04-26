@@ -1,0 +1,17 @@
+# Core requirements
+ttkthemes
+matplotlib
+vtk
+pyserial
+opencv-python
+opencv-contrib-python
+inputs
+ttkbootstrap
+numpy
+pandas
+scipy
+Pillow
+
+# Platform Specifics
+pywin32; sys_platform == "win32"
+pybind11; sys_platform == "darwin" or sys_platform == "linux"
