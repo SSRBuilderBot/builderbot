@@ -4810,24 +4810,29 @@ else:
 
 def send_serial_command(cmd):
     #global progRunning
+    if cmd.startswith("RJ"):
+      m = re.search(r"Lm([01]{6})", cmd)
+      RUN['last_rj_loop_mode'] = m.group(1) if m else "unknown"
+
     RUN['ser'].write(cmd.encode())    
     RUN['ser'].flushInput()
     time.sleep(0.1)
     response = str(RUN['ser'].readline().strip(), 'utf-8')
-    IncJogStatVal = int(RUN['IncJogStat'].get())
-    if IncJogStatVal or RUN['progRunning']:
-      if response[:1] == 'E':
-        ErrorHandler(response)
-      else:
-        displayPosition(response) 		
+    if not response:
+      return
+
+    if response[:1] == 'E':
+      ErrorHandler(response)
+    else:
+      # Always refresh position state after a motion command so subsequent
+      # joint moves are computed from the latest angles.
+      displayPosition(response)
 
 
 
 def start_send_serial_thread(command):
     #global progRunning
-    if serial_lock.locked():
-        logger.warning("Serial command already in progress — ignoring.")
-        return
+    # Do not drop commands when serial is busy; let the lock serialize them.
     t = threading.Thread(target=run_send_serial_safe, args=(command,), daemon=True)
     t.start()
 
@@ -4837,6 +4842,16 @@ def run_send_serial_safe(command):
         cmdSentEntryField.delete(0, 'end')
         cmdSentEntryField.insert(0, command)
         send_serial_command(command)
+
+
+def build_single_joint_loop_mode(active_joint_index):
+  """Build a loop-mode string for RJ single-joint jog commands.
+
+  The Teensy checks encoder collision on every joint in the command. For
+  manual single-joint slider/button jogs, force all joints to open-loop (1)
+  so encoder noise or missing feedback cannot block motion.
+  """
+  return "111111"
        
 
  
@@ -4865,7 +4880,7 @@ def J1jogNeg(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(0)
   command = "RJ"+"A"+str(float(CAL['J1AngCur'])-value)+"B"+CAL['J2AngCur']+"C"+CAL['J3AngCur']+"D"+CAL['J4AngCur']+"E"+CAL['J5AngCur']+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0])-value)+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -4901,7 +4916,7 @@ def J1jogPos(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(0)
   command = "RJ"+"A"+str(float(CAL['J1AngCur'])+value)+"B"+CAL['J2AngCur']+"C"+CAL['J3AngCur']+"D"+CAL['J4AngCur']+"E"+CAL['J5AngCur']+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0])+value)+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -4937,7 +4952,7 @@ def J2jogNeg(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(1)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+str(float(CAL['J2AngCur'])-value)+"C"+CAL['J3AngCur']+"D"+CAL['J4AngCur']+"E"+CAL['J5AngCur']+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1]-value)+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -4974,7 +4989,7 @@ def J2jogPos(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(1)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+str(float(CAL['J2AngCur'])+value)+"C"+CAL['J3AngCur']+"D"+CAL['J4AngCur']+"E"+CAL['J5AngCur']+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1]+value)+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -5009,7 +5024,7 @@ def J3jogNeg(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(2)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+CAL['J2AngCur']+"C"+str(float(CAL['J3AngCur'])-value)+"D"+CAL['J4AngCur']+"E"+CAL['J5AngCur']+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2]-value)+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -5044,7 +5059,7 @@ def J3jogPos(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(2)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+CAL['J2AngCur']+"C"+str(float(CAL['J3AngCur'])+value)+"D"+CAL['J4AngCur']+"E"+CAL['J5AngCur']+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2]+value)+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -5079,7 +5094,7 @@ def J4jogNeg(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(3)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+CAL['J2AngCur']+"C"+CAL['J3AngCur']+"D"+str(float(CAL['J4AngCur'])-value)+"E"+CAL['J5AngCur']+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3]-value)+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -5114,7 +5129,7 @@ def J4jogPos(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(3)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+CAL['J2AngCur']+"C"+CAL['J3AngCur']+"D"+str(float(CAL['J4AngCur'])+value)+"E"+CAL['J5AngCur']+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3]+value)+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -5149,7 +5164,7 @@ def J5jogNeg(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(4)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+CAL['J2AngCur']+"C"+CAL['J3AngCur']+"D"+CAL['J4AngCur']+"E"+str(float(CAL['J5AngCur'])-value)+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4]-value)+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -5184,7 +5199,7 @@ def J5jogPos(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(4)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+CAL['J2AngCur']+"C"+CAL['J3AngCur']+"D"+CAL['J4AngCur']+"E"+str(float(CAL['J5AngCur'])+value)+"F"+CAL['J6AngCur']+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4]+value)+"F"+str(RUN['VR_angles'][5])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -5219,7 +5234,7 @@ def J6jogNeg(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(5)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+CAL['J2AngCur']+"C"+CAL['J3AngCur']+"D"+CAL['J4AngCur']+"E"+CAL['J5AngCur']+"F"+str(float(CAL['J6AngCur'])-value)+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5]-value)+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -5254,7 +5269,7 @@ def J6jogPos(value):
   ACCspd = ACCspeedField.get()
   DECspd = DECspeedField.get()
   ACCramp = ACCrampField.get()
-  LoopMode = str(CAL['J1OpenLoopVal'].get())+str(CAL['J2OpenLoopVal'].get())+str(CAL['J3OpenLoopVal'].get())+str(CAL['J4OpenLoopVal'].get())+str(CAL['J5OpenLoopVal'].get())+str(CAL['J6OpenLoopVal'].get())
+  LoopMode = build_single_joint_loop_mode(5)
   command = "RJ"+"A"+CAL['J1AngCur']+"B"+CAL['J2AngCur']+"C"+CAL['J3AngCur']+"D"+CAL['J4AngCur']+"E"+CAL['J5AngCur']+"F"+str(float(CAL['J6AngCur'])+value)+"J7"+str(CAL['J7PosCur'])+"J8"+str(CAL['J8PosCur'])+"J9"+str(CAL['J9PosCur'])+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   commandVR = "RJ"+"A"+str(float(RUN['VR_angles'][0]))+"B"+str(RUN['VR_angles'][1])+"C"+str(RUN['VR_angles'][2])+"D"+str(RUN['VR_angles'][3])+"E"+str(RUN['VR_angles'][4])+"F"+str(RUN['VR_angles'][5]+value)+speedPrefix+Speed+"Ac"+ACCspd+"Dc"+DECspd+"Rm"+ACCramp+"W"+RUN['WC']+"Lm"+LoopMode+"\n"
   #send command to virtual robot
@@ -8973,6 +8988,15 @@ def displayPosition(response):
   J7PosIndex = response.find('P');
   J8PosIndex = response.find('Q');
   J9PosIndex = response.find('R');
+
+  # Ignore malformed/non-position lines so we do not corrupt joint state.
+  required = [J1AngIndex, J2AngIndex, J3AngIndex, J4AngIndex, J5AngIndex, J6AngIndex,
+              XposIndex, YposIndex, ZposIndex, RzposIndex, RyposIndex, RxposIndex,
+              SpeedVioIndex, DebugIndex, FlagIndex, J7PosIndex, J8PosIndex, J9PosIndex]
+  if any(idx < 0 for idx in required):
+    logger.warning(f"Unexpected position response format: {response!r}")
+    return
+
   CAL['J1AngCur'] = response[J1AngIndex+1:J2AngIndex].strip();
   CAL['J2AngCur'] = response[J2AngIndex+1:J3AngIndex].strip();
   CAL['J3AngCur'] = response[J3AngIndex+1:J4AngIndex].strip();
@@ -9649,6 +9673,13 @@ def ErrorHandler(response):
 
   ##COLLISION ERROR   
   elif (response[1:2] == 'C'):
+    collision_bits = response[2:8]
+    loop_mode_ui = ''.join(str(int(CAL[f'J{i}OpenLoopVal'].get())) for i in range(1, 7))
+    loop_mode_sent = RUN.get('last_rj_loop_mode', 'unknown')
+    logger.error(
+      f"Collision response={response!r}, bits(J1..J6)={collision_bits}, "
+      f"loopModeSent={loop_mode_sent}, loopModeUI={loop_mode_ui}"
+    )
     if (response[2:3] == '1'):
       messages.append("J1 Collision or Motor Error")
     if (response[3:4] == '1'):
